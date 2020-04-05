@@ -1,0 +1,4 @@
+sampledPlaneAverage/sampledPlaneAverage.C
+sampledPlaneSpanwise/sampledPlaneSpanwise.C
+
+LIB = $(FOAM_USER_LIBBIN)/libsampledPlaneAverage
