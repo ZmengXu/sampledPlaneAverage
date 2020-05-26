@@ -51,10 +51,10 @@ runTimeModifiable yes;
 
 functions
 {
-    surfaceSamplingZY
+    surfaceSampling1
     {
         type surfaces;
-        libs ("libZYsampling.so");
+        libs ("libsampledPlaneAverage.so");
         enabled true;
         writeControl outputTime; //The same time control with case data write.
         interpolationScheme  cell; //suggest to use 'cell', which is suitable for various mesh size in the domain.
@@ -62,7 +62,7 @@ functions
         fields ( T );
         surfaces
         (
-            planeZY
+            plane1
             {
                 type spanwisePlane; //choose class 'spanwiseAverage' to get spanwise averaging.
                 interpolate    true; //Must be true, or it just cut the plane do not do spanwise average.
@@ -81,7 +81,7 @@ functions
     lineOfSight
     {
         type surfaces;
-        libs ("libZYsampling.so");
+        libs ("libsampledPlaneAverage.so");
         enabled true;
         writeControl outputTime;
         interpolationScheme  cell;
@@ -89,7 +89,7 @@ functions
         fields ( T );    
         surfaces
         (
-            planeZY
+            plane2
             {
                 type sampledPlaneAverage; 
                 planeType pointAndNormal;
