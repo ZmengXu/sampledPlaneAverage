@@ -2,7 +2,7 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | Copyright (C) 2011-2019 OpenFOAM Foundation
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
 License
@@ -23,7 +23,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "sampledPlaneAverage.H"
+#include "sampledPlaneSpanwise.H"
 #include "dictionary.H"
 #include "polyMesh.H"
 #include "volFields.H"
@@ -34,38 +34,51 @@ License
 
 namespace Foam
 {
-    defineTypeNameAndDebug(sampledPlaneAverage, 0);
-    addNamedToRunTimeSelectionTable(sampledSurface, sampledPlaneAverage, word, spatialAverage);
+namespace sampledSurfaces
+{
+    defineTypeNameAndDebug(sampledPlaneSpanwise, 0);
+    addToRunTimeSelectionTable(sampledSurface, sampledPlaneSpanwise, word);
+}
 }
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::sampledPlaneAverage::sampledPlaneAverage
+/*Foam::sampledSurfaces::sampledPlaneSpanwise::sampledPlaneSpanwise
 (
     const word& name,
     const polyMesh& mesh,
     const plane& planeDesc,
-    const scalar& distance,
+	const vector& spanwiseVector,
     const keyType& zoneKey,
     const bool triangulate
 )
 :
     sampledSurface(name, mesh),
     cuttingPlane(planeDesc),
-    distance_(distance),
-	lineOfSight_(false),
+    nPoints_(12),
+	spanwiseVector_(spanwiseVector),
     zoneKey_(zoneKey),
     triangulate_(triangulate),
     needsUpdate_(true)
 {
+    Info<<"I am in sampledPlaneSpanwise::sampledPlaneSpanwise1 =========sampledPlaneSpanwise======="<<endl;
+
     if (debug && zoneKey_.size() && mesh.cellZones().findIndex(zoneKey_) < 0)
     {
         Info<< "cellZone " << zoneKey_
             << " not found - using entire mesh" << endl;
     }
 
-    const vector& normal = planeDesc.normal()/mag(planeDesc.normal());
-
+    const vector& normal = spanwiseVector_;
+    const vector& planNorm = planeDesc.normal();
+    if ( abs(normal&planNorm) > SMALL)
+    {
+        FatalErrorIn
+	    (
+	         "Foam::sampledAveragePlane::sampledAveragePlane"
+	    )   << "The spanwiseVector normal is not perpendicular to the plane normal"
+	        << exit(FatalError);
+    }
     if (abs(abs(normal.x())+abs(normal.y())+abs(normal.z())-1.0) > SMALL)
     {
         FatalErrorIn
@@ -74,7 +87,7 @@ Foam::sampledPlaneAverage::sampledPlaneAverage
 	    )   << "The spanwiseVector normal is not one of the coordinate axis"
 	        << exit(FatalError);
     }
-    
+
     if(abs(abs(normal.x())-1.0) < SMALL)
     {
         axis_ = "x";
@@ -86,11 +99,11 @@ Foam::sampledPlaneAverage::sampledPlaneAverage
     else if(abs(abs(normal.z())-1.0) < SMALL)
     {
         axis_ = "z";
-    }    
-}
+    }
+}*/
 
 
-Foam::sampledPlaneAverage::sampledPlaneAverage
+Foam::sampledSurfaces::sampledPlaneSpanwise::sampledPlaneSpanwise
 (
     const word& name,
     const polyMesh& mesh,
@@ -98,14 +111,17 @@ Foam::sampledPlaneAverage::sampledPlaneAverage
 )
 :
     sampledSurface(name, mesh, dict),
-    cuttingPlane(plane(dict.lookup("basePoint"), dict.lookup("normalVector"))),
-    distance_(readScalar(dict.lookup("distance"))),
-	lineOfSight_(dict.lookupOrDefault<bool>("lineOfSight", false)),
+    //cuttingPlane(Foam::plane(dict)),
+    cuttingPlane(plane(dict)),
+    nPoints_(dict.lookupOrDefault<label>("nPoints", 12)),
+	spanwiseVector_(vector(dict.lookup("spanwiseVector"))),
     zoneKey_(keyType::null),
     triangulate_(dict.lookupOrDefault("triangulate", true)),
     needsUpdate_(true)
 {
-    // make plane relative to the coordinateSystem (Cartesian)
+    Info<<"I am in sampledPlaneSpanwise::sampledPlaneSpanwise2 =========sampledPlaneSpanwise======="<<endl;
+
+    // Make plane relative to the coordinateSystem (Cartesian)
     // allow lookup from global coordinate systems
     if (dict.found("coordinateSystem"))
     {
@@ -114,8 +130,8 @@ Foam::sampledPlaneAverage::sampledPlaneAverage
         point  base = cs.globalPosition(planeDesc().refPoint());
         vector norm = cs.globalVector(planeDesc().normal());
 
-        // assign the plane description
-        static_cast<plane&>(*this) = plane(base, norm);
+        // Assign the plane description
+        static_cast<Foam::plane&>(*this) = Foam::plane(base, norm);
     }
 
     dict.readIfPresent("zone", zoneKey_);
@@ -126,8 +142,16 @@ Foam::sampledPlaneAverage::sampledPlaneAverage
             << " not found - using entire mesh" << endl;
     }
 
-    const vector& normal = this->normal()/mag(this->normal());
-
+    const vector& normal = spanwiseVector_;
+    const vector& planNorm = this->normal();
+    if ( mag(normal&planNorm) > SMALL)
+    {
+        FatalErrorIn
+	    (
+	         "Foam::sampledAveragePlane::sampledAveragePlane"
+	    )   << "The spanwiseVector normal is not perpendicular to the plane normal"
+	        << exit(FatalError);
+    }
     if (abs(abs(normal.x())+abs(normal.y())+abs(normal.z())-1.0) > SMALL)
     {
         FatalErrorIn
@@ -136,7 +160,7 @@ Foam::sampledPlaneAverage::sampledPlaneAverage
 	    )   << "The spanwiseVector normal is not one of the coordinate axis"
 	        << exit(FatalError);
     }
-    
+
     if(abs(abs(normal.x())-1.0) < SMALL)
     {
         axis_ = "x";
@@ -149,24 +173,25 @@ Foam::sampledPlaneAverage::sampledPlaneAverage
     {
         axis_ = "z";
     }
+    Pout<< "axis_==="<<axis_<<endl;
 }
 
 
 // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
 
-Foam::sampledPlaneAverage::~sampledPlaneAverage()
+Foam::sampledSurfaces::sampledPlaneSpanwise::~sampledPlaneSpanwise()
 {}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-bool Foam::sampledPlaneAverage::needsUpdate() const
+bool Foam::sampledSurfaces::sampledPlaneSpanwise::needsUpdate() const
 {
     return needsUpdate_;
 }
 
 
-bool Foam::sampledPlaneAverage::expire()
+bool Foam::sampledSurfaces::sampledPlaneSpanwise::expire()
 {
     // already marked as expired
     if (needsUpdate_)
@@ -181,8 +206,10 @@ bool Foam::sampledPlaneAverage::expire()
 }
 
 
-bool Foam::sampledPlaneAverage::update()
+bool Foam::sampledSurfaces::sampledPlaneSpanwise::update()
 {
+    Info<<"I am in sampledPlaneSpanwise::update =========sampledPlaneSpanwise======="<<endl;
+
     if (!needsUpdate_)
     {
         return false;
@@ -192,14 +219,32 @@ bool Foam::sampledPlaneAverage::update()
 
     labelList selectedCells = mesh().cellZones().findMatching(zoneKey_).used();
 
-    if (selectedCells.empty())
+    bool fullMesh = returnReduce(selectedCells.empty(), andOp<bool>());
+
+    if (fullMesh)
     {
-        reCut(mesh(), triangulate_);
+        const label len = mesh().nCells();
+
+        selectedCells.setSize(len);
+
+        label count = 0;
+        for (label celli=0; celli < len; ++celli)
+        {
+            selectedCells[count++] = celli;
+        }
     }
     else
     {
-        reCut(mesh(), triangulate_, selectedCells);
+        label count = 0;
+        for (const label celli : selectedCells)
+        {
+            selectedCells[count++] = celli;
+        }
+
+        selectedCells.setSize(count);
     }
+
+    reCut(mesh(), triangulate_, selectedCells);
 
     if (debug)
     {
@@ -212,7 +257,7 @@ bool Foam::sampledPlaneAverage::update()
 }
 
 
-Foam::tmp<Foam::scalarField> Foam::sampledPlaneAverage::sample
+Foam::tmp<Foam::scalarField> Foam::sampledSurfaces::sampledPlaneSpanwise::sample
 (
     const volScalarField& vField
 ) const
@@ -221,7 +266,7 @@ Foam::tmp<Foam::scalarField> Foam::sampledPlaneAverage::sample
 }
 
 
-Foam::tmp<Foam::vectorField> Foam::sampledPlaneAverage::sample
+Foam::tmp<Foam::vectorField> Foam::sampledSurfaces::sampledPlaneSpanwise::sample
 (
     const volVectorField& vField
 ) const
@@ -230,7 +275,7 @@ Foam::tmp<Foam::vectorField> Foam::sampledPlaneAverage::sample
 }
 
 
-Foam::tmp<Foam::sphericalTensorField> Foam::sampledPlaneAverage::sample
+Foam::tmp<Foam::sphericalTensorField> Foam::sampledSurfaces::sampledPlaneSpanwise::sample
 (
     const volSphericalTensorField& vField
 ) const
@@ -239,7 +284,7 @@ Foam::tmp<Foam::sphericalTensorField> Foam::sampledPlaneAverage::sample
 }
 
 
-Foam::tmp<Foam::symmTensorField> Foam::sampledPlaneAverage::sample
+Foam::tmp<Foam::symmTensorField> Foam::sampledSurfaces::sampledPlaneSpanwise::sample
 (
     const volSymmTensorField& vField
 ) const
@@ -248,7 +293,7 @@ Foam::tmp<Foam::symmTensorField> Foam::sampledPlaneAverage::sample
 }
 
 
-Foam::tmp<Foam::tensorField> Foam::sampledPlaneAverage::sample
+Foam::tmp<Foam::tensorField> Foam::sampledSurfaces::sampledPlaneSpanwise::sample
 (
     const volTensorField& vField
 ) const
@@ -257,7 +302,7 @@ Foam::tmp<Foam::tensorField> Foam::sampledPlaneAverage::sample
 }
 
 
-Foam::tmp<Foam::scalarField> Foam::sampledPlaneAverage::interpolate
+Foam::tmp<Foam::scalarField> Foam::sampledSurfaces::sampledPlaneSpanwise::interpolate
 (
     const interpolation<scalar>& interpolator
 ) const
@@ -266,7 +311,7 @@ Foam::tmp<Foam::scalarField> Foam::sampledPlaneAverage::interpolate
 }
 
 
-Foam::tmp<Foam::vectorField> Foam::sampledPlaneAverage::interpolate
+Foam::tmp<Foam::vectorField> Foam::sampledSurfaces::sampledPlaneSpanwise::interpolate
 (
     const interpolation<vector>& interpolator
 ) const
@@ -274,7 +319,7 @@ Foam::tmp<Foam::vectorField> Foam::sampledPlaneAverage::interpolate
     return interpolateField(interpolator);
 }
 
-Foam::tmp<Foam::sphericalTensorField> Foam::sampledPlaneAverage::interpolate
+Foam::tmp<Foam::sphericalTensorField> Foam::sampledSurfaces::sampledPlaneSpanwise::interpolate
 (
     const interpolation<sphericalTensor>& interpolator
 ) const
@@ -283,7 +328,7 @@ Foam::tmp<Foam::sphericalTensorField> Foam::sampledPlaneAverage::interpolate
 }
 
 
-Foam::tmp<Foam::symmTensorField> Foam::sampledPlaneAverage::interpolate
+Foam::tmp<Foam::symmTensorField> Foam::sampledSurfaces::sampledPlaneSpanwise::interpolate
 (
     const interpolation<symmTensor>& interpolator
 ) const
@@ -292,7 +337,7 @@ Foam::tmp<Foam::symmTensorField> Foam::sampledPlaneAverage::interpolate
 }
 
 
-Foam::tmp<Foam::tensorField> Foam::sampledPlaneAverage::interpolate
+Foam::tmp<Foam::tensorField> Foam::sampledSurfaces::sampledPlaneSpanwise::interpolate
 (
     const interpolation<tensor>& interpolator
 ) const
@@ -301,11 +346,12 @@ Foam::tmp<Foam::tensorField> Foam::sampledPlaneAverage::interpolate
 }
 
 
-void Foam::sampledPlaneAverage::print(Ostream& os) const
+void Foam::sampledSurfaces::sampledPlaneSpanwise::print(Ostream& os) const
 {
-    os  << "sampledPlaneAverage: " << name() << " :"
+    os  << "sampledPlaneSpanwise: " << name() << " :"
         << "  base:" << refPoint()
         << "  normal:" << normal()
+        << "  nPoints:" << nPoints_
         << "  triangulate:" << triangulate_
         << "  faces:" << faces().size()
         << "  points:" << points().size();
