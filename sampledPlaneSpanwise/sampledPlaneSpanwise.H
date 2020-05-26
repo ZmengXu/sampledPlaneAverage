@@ -84,9 +84,7 @@ Author
 
 namespace Foam
 {
-namespace sampledSurfaces
-{
-    
+
 /*---------------------------------------------------------------------------*\
                         Class sampledPlaneSpanwise Declaration
 \*---------------------------------------------------------------------------*/
@@ -96,8 +94,7 @@ class sampledPlaneSpanwise
     public sampledSurface,
     public cuttingPlane
 {
-    // Private Data
-        
+    // Private data
 		//- Direction normal to the plane
 		word axis_;
 
@@ -117,6 +114,10 @@ class sampledPlaneSpanwise
         mutable bool needsUpdate_;
 
     // Private Member Functions
+        //- Create an matrix to ratate
+        template<class Type>
+        tmp<Tensor<Type>> rotationMatrix(vector basePoint, vector baseVector, scalar theta);
+        
         //- Sample field on faces
         template<class Type>
         tmp<Field<Type>> sampleField
@@ -129,17 +130,19 @@ class sampledPlaneSpanwise
         tmp<Field<Type>>
         interpolateField(const interpolation<Type>&) const;
 
+
+
 	
 public:
 
     //- Runtime type information
-    TypeName("spanwisePlane");
+    TypeName("sampledPlaneSpanwise");
 
 
     // Constructors
 
         //- Construct from components
-        /*sampledPlaneSpanwise
+        sampledPlaneSpanwise
         (
             const word& name,
             const polyMesh& mesh,
@@ -147,7 +150,7 @@ public:
 			const vector& spanwiseVector,
             const keyType& zoneKey = word::null,
             const bool triangulate = true
-        );*/
+        );
 
         //- Construct from dictionary
         sampledPlaneSpanwise
@@ -265,7 +268,6 @@ public:
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-} // End namespace sampledSurfaces
 } // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
