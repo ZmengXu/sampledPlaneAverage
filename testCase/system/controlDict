@@ -1,0 +1,107 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  4.1                                   |
+|   \\  /    A nd           | Web:      www.OpenFOAM.org                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+application     sprayFoam;
+
+startFrom       startTime;
+
+startTime       0;
+
+stopAt          writeNow;
+
+endTime         0.0001;
+
+deltaT          5e-06;
+
+writeControl    adjustableRunTime;
+
+writeInterval   0.0001;
+
+purgeWrite      0;
+
+writeFormat     binary;
+
+writePrecision  6;
+
+writeCompression uncompressed;
+
+timeFormat      general;
+
+timePrecision   6;
+
+adjustTimeStep  yes;
+
+maxCo           0.1;
+
+runTimeModifiable yes;
+
+functions
+{
+    surfaceSampling1
+    {
+        type surfaces;
+        libs ("libsampledPlaneAverage.so");
+        enabled true;
+        writeControl outputTime; //The same time control with case data write.
+        interpolationScheme  cell; //suggest to use 'cell', which is suitable for various mesh size in the domain.
+        surfaceFormat vtk;
+        fields ( T );
+        surfaces
+        (
+            plane1
+            {
+                type spanwisePlane; //choose class 'spanwiseAverage' to get spanwise averaging.
+                interpolate    true; //Must be true, or it just cut the plane do not do spanwise average.
+                planeType pointAndNormal; //method used to specific the cuttingPlane
+                pointAndNormalDict
+                {
+                    basePoint (0 0 0); //This is the origin point for cut plane and for spanwise average
+                    normalVector (1 0 0); //This is the normal vector for cut plane, it must be one of the axis.
+                }
+                nPoints    72; //The sample points, how many data in 360 degree is used to average.
+                spanwiseVector (0 0 1); //The symmetry axis, it is the rotation vector for spanwise average
+                                        //it must be perpendicular to cut plan normalVector
+            }
+        );
+    }
+    lineOfSight
+    {
+        type surfaces;
+        libs ("libsampledPlaneAverage.so");
+        enabled true;
+        writeControl outputTime;
+        interpolationScheme  cell;
+        surfaceFormat vtk;
+        fields ( T );    
+        surfaces
+        (
+            plane2
+            {
+                type sampledPlaneAverage; 
+                planeType pointAndNormal;
+                pointAndNormalDict
+                {
+                    basePoint (0 0 0); //This is the origin point for cut plane and for spanwise average
+                    normalVector (1 0 0); //This is the normal vector for cut plane, it must be one of the axis.
+                }
+                interpolate	true;		//must be true
+                distance	0.001;		//m
+                lineOfSight	false;		//lineOfSight false is average;
+            }
+        );
+    }
+}

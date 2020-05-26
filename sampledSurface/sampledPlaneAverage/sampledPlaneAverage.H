@@ -98,6 +98,7 @@ class sampledPlaneAverage
     public cuttingPlane
 {
     // Private data
+        
 		//- Direction normal to the plane
 		word axis_;
 
@@ -139,7 +140,7 @@ public:
     // Constructors
 
         //- Construct from components
-        sampledPlaneAverage
+        /*sampledPlaneAverage
         (
             const word& name,
             const polyMesh& mesh,
@@ -147,7 +148,7 @@ public:
             const scalar& distance,            
             const keyType& zoneKey = word::null,
             const bool triangulate = true
-        );
+        );*/
 
         //- Construct from dictionary
         sampledPlaneAverage
