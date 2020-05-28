@@ -1,0 +1,7 @@
+sampledSet/uniform/uniformSet.C
+sampledSet/circle/circleSet.C
+sampledSurface/sampledPlaneAverage/sampledPlaneAverage.C
+sampledSurface/sampledPlaneSpanwise/sampledPlaneSpanwise.C
+
+
+LIB = $(FOAM_USER_LIBBIN)/libsampledPlaneAverage
